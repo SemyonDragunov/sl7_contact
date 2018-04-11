@@ -42,6 +42,9 @@ The form of feedback from Yandex card.
 * Unloading into XML
 * Unloading in Excel
 
+Required modules from SL7:
+* [sl7_control_panel](https://github.com/SemyonDragunov/sl7_control_panel)
+
 For Drupal 7. PHP =< 5.4
 
 To continue developing css, see bower.json
