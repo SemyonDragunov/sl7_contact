@@ -1,0 +1,16 @@
+name = Форма обратной связи
+description = Форма обратной связи с картой.
+package = SL7
+version = 7.x-1.0
+core = 7.x
+
+configure = admin/control-panel/contact/settings
+
+dependencies[] = sl7_control_panel
+dependencies[] = entityform
+dependencies[] = geofield_ymap
+dependencies[] = geofield
+dependencies[] = views
+dependencies[] = views_data_export
+dependencies[] = path_breadcrumbs
+dependencies[] = rules

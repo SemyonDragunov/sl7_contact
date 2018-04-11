@@ -1,0 +1,198 @@
+<?php
+
+/**
+ * Implements hook_install().
+ */
+function sl7_contact_install() {
+
+  // Добавляем права
+  if ($role_manager = user_role_load_by_name('manager')) {
+    $editor_permissions = array(
+      'view any entityform' => TRUE,
+      'sl7_contact administer' => TRUE,
+    );
+    user_role_change_permissions($role_manager->rid, $editor_permissions);
+  }
+
+  // Set path breadcrumbs settings.
+  variable_set('path_breadcrumbs_home_link_title', 'Главная');
+
+  $fields = array(
+    array(
+      'field_name' => 'sl7_contact_name',
+      'type' => 'text',
+      'cardinality' => 1,
+      'locked' => TRUE,
+      'settings' => array(
+        'max_length' => 255,
+      ),
+    ),
+    array(
+      'field_name' => 'sl7_contact_email',
+      'type' => 'text',
+      'cardinality' => 1,
+      'locked' => TRUE,
+      'settings' => array(
+        'max_length' => 255,
+      ),
+    ),
+    array(
+      'field_name' => 'sl7_contact_message',
+      'cardinality' => 1,
+      'entity_types' => array(),
+      'foreign keys' => array(
+        'format' => array(
+          'columns' => array(
+            'format' => 'format',
+          ),
+          'table' => 'filter_format',
+        ),
+      ),
+      'indexes' => array(
+        'format' => array(
+          0 => 'format',
+        ),
+      ),
+      'locked' => 0,
+      'module' => 'text',
+      'settings' => array(),
+      'type' => 'text_long',
+    ),
+  );
+  foreach ($fields as $field) {
+    $exists = db_query("SELECT id FROM {field_config} WHERE field_name=:field_name", array(':field_name' => $field['field_name']))->fetchField();
+    if (!$exists) {
+      field_create_field($field);
+    }
+  }
+
+  $instances = array(
+    array(
+      'field_name' => 'sl7_contact_message',
+      'label' => 'Сообщение',
+      'bundle' => 'sl7_contact',
+      'default_value' => NULL,
+      'deleted' => 0,
+      'description' => '',
+      'display' => array(
+        'default' => array(
+          'label' => 'above',
+          'module' => 'text',
+          'settings' => array(),
+          'type' => 'text_default',
+          'weight' => 2,
+        ),
+      ),
+      'entity_type' => 'entityform',
+      'required' => 1,
+      'settings' => array(
+        'text_processing' => 0,
+        'user_register_form' => FALSE,
+      ),
+      'widget' => array(
+        'active' => 1,
+        'module' => 'text',
+        'settings' => array(
+          'rows' => 5,
+        ),
+        'type' => 'text_textarea',
+        'weight' => 3,
+      ),
+    ),
+    array(
+      'field_name' => 'sl7_contact_name',
+      'label' => 'Ваше имя',
+      'bundle' => 'sl7_contact',
+      'default_value' => NULL,
+      'deleted' => 0,
+      'description' => '',
+      'display' => array(
+        'default' => array(
+          'label' => 'above',
+          'module' => 'text',
+          'settings' => array(),
+          'type' => 'text_default',
+          'weight' => 0,
+        ),
+      ),
+      'entity_type' => 'entityform',
+      'required' => 1,
+      'settings' => array(
+        'text_processing' => 0,
+        'user_register_form' => FALSE,
+      ),
+      'widget' => array(
+        'active' => 1,
+        'module' => 'text',
+        'settings' => array(
+          'size' => 60,
+        ),
+        'type' => 'text_textfield',
+        'weight' => 1,
+      ),
+    ),
+    array(
+      'field_name' => 'sl7_contact_email',
+      'label' => 'E-Mail',
+      'bundle' => 'sl7_contact',
+      'default_value' => NULL,
+      'deleted' => 0,
+      'description' => '',
+      'display' => array(
+        'default' => array(
+          'label' => 'above',
+          'module' => 'text',
+          'settings' => array(),
+          'type' => 'text_default',
+          'weight' => 1,
+        ),
+      ),
+      'entity_type' => 'entityform',
+      'required' => 1,
+      'settings' => array(
+        'text_processing' => 0,
+        'user_register_form' => FALSE,
+      ),
+      'widget' => array(
+        'active' => 1,
+        'module' => 'text',
+        'settings' => array(
+          'size' => 60,
+        ),
+        'type' => 'text_textfield',
+        'weight' => 2,
+      ),
+    ),
+  );
+  foreach ($instances as $instance) {
+    $exists = db_query("SELECT id FROM {field_config_instance} WHERE field_name=:field_name AND entity_type=:entity_type AND bundle=:bundle", array(':field_name' => $instance['field_name'], ':entity_type' => $instance['entity_type'], ':bundle' => $instance['bundle']))->fetchField();
+    if (!$exists) {
+      field_create_instance($instance);
+    }
+  }
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function sl7_contact_uninstall() {
+
+  // Удаление полей
+  field_attach_delete_bundle('entityform_type', 'sl7_contact');
+  db_delete('field_config_instance')->condition('entity_type', 'entityform')->condition('bundle', 'sl7_contact')->execute();
+  db_delete('field_config')->condition('field_name', 'sl7_contact_%', 'LIKE')->execute();
+
+  // Удаление entityform_type.
+  $type = entityform_type_load('sl7_contact');
+  entityform_type_delete($type);
+
+  // Удаление переменных.
+  $result = db_select('variable', 'v')
+    ->fields('v', array('name'))
+    ->condition('name', 'sl7_contact_%', 'LIKE')
+    ->execute();
+
+  foreach ($result as $row) {
+    variable_del($row->name);
+  }
+}

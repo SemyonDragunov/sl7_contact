@@ -1,0 +1,302 @@
+<?php
+
+define('SL7_CONTACT_ADMIN_PATH', SL7_CONTROL_PANEL_ADMIN_PATH . '/contact');
+
+/**
+ * Implement hook_menu().
+ */
+function sl7_contact_menu() {
+
+  $items['contact'] = array(
+    'title' => 'Контакты',
+    'page callback' => 'theme',
+    'page arguments' => array('sl7_contact'),
+    'access callback' => TRUE,
+    'menu_name' => 'main-menu',
+    'weight' => 50,
+  );
+
+  $items[SL7_CONTACT_ADMIN_PATH] = array(
+    'title' => 'Контакты',
+    'position' => 'left',
+    'page callback' => 'system_admin_menu_block_page',
+    'access callback' => 'sl7_control_panel_access',
+    'access arguments' => array('view'),
+    'file path' => drupal_get_path('module', 'system'),
+    'file' => 'system.admin.inc',
+  );
+
+  $items[SL7_CONTACT_ADMIN_PATH . '/submissions'] = array(
+    'title' => 'Отправления',
+    'description' => 'Посмотреть все отправленные письма из контактной формы.',
+    'page callback' => 'drupal_goto',
+    'page arguments' => array('entityform-submissions/submissions/sl7_contact/table'),
+    'access arguments' => array('view any entityform'),
+    'weight' => -10,
+  );
+
+  $items[SL7_CONTACT_ADMIN_PATH . '/settings'] = array(
+    'title' => 'Настройки',
+    'description' => 'Настройка формы контактов.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('sl7_contact_settings_form'),
+    'access arguments' => array('sl7_contact administer'),
+    'weight' => 1,
+  );
+
+  return $items;
+}
+
+/**
+ * Implement hook_admin_paths().
+ */
+function sl7_contact_admin_paths() {
+  $paths = array(
+    'entityform-submissions/submissions/sl7_contact' => TRUE,
+    'entityform-submissions/submissions/sl7_contact/*' => TRUE,
+  );
+
+  return $paths;
+}
+
+/**
+ * Implement hook_permission().
+ */
+function sl7_contact_permission() {
+  return array(
+    'sl7_contact administer' => array('title' => 'Управление контактами.'),
+  );
+}
+
+/**
+ * Implement hook_theme().
+ */
+function sl7_contact_theme() {
+  $items = array(
+    'sl7_contact' => array(
+      'template' => 'templates/sl7-contact',
+    ),
+  );
+
+  foreach ($items as &$item) {
+    if (!isset($item['file'])) {
+      $item['file'] = 'templates/theme.inc';
+    }
+  }
+
+  return $items;
+}
+
+/**
+ * Implements hook_block_info().
+ */
+function sl7_contact_block_info() {
+  $blocks['sl7_contact'] = array(
+    'info' => 'Форма обратной связи',
+    'status' => 1,
+    'region' => 'front',
+    'weight' => 15,
+    'visibility' => BLOCK_VISIBILITY_NOTLISTED,
+  );
+
+  return $blocks;
+}
+
+/**
+ * Implements hook_block_view().
+ */
+function sl7_contact_block_view($delta = '') {
+  $block = array();
+
+  if ($delta == 'sl7_contact') {
+    $block['subject'] = 'Контакты';
+    $block['content'] = array(
+      '#title' => 'Контакты',
+      '#markup' => theme('sl7_contact'),
+    );
+  }
+
+  return $block;
+}
+
+function sl7_contact_entityform_form($form, &$form_state) {
+  module_load_include('inc', 'entityform', 'entityform.admin');
+  $entity_form_name = 'sl7_contact';
+  $entityform = entityform_form_wrapper(entityform_empty_load($entity_form_name), 'submit', 'embedded');
+
+  print render($entityform);
+}
+
+/**
+ * Implement hook_form_FORM_ID_alter().
+ */
+function sl7_contact_form_sl7_contact_entityform_edit_form_alter(&$form, &$form_state, $form_id) {
+  $form['actions']['submit']['#ajax'] = array(
+    'path' => 'ajax/sl7/entityform/submit',
+    'progress' => array('type' => 'none'),
+  );
+  $form['actions']['submit']['#attributes']['class'][] = 'use-ajax-submit';
+  $form['#action'] = 'ajax/sl7/entityform/submit';
+  $form['#validate'][] = 'sl7_contact_entityform_form_extra_validate';
+}
+
+function sl7_contact_entityform_form_extra_validate($form, &$form_state) {
+  if (!valid_email_address($form_state['values']['sl7_contact_email']['und'][0]['value'])) {
+    form_set_error('sl7_contact_email', 'Неверный формат e-mail адреса.');
+  }
+}
+
+function sl7_contact_settings_form($form, &$form_state) {
+
+  $form['description'] = array(
+    '#type' => 'fieldset',
+    '#title' => 'Описание',
+    '#collapsible' => TRUE,
+    '#collapsed' => FALSE,
+  );
+
+  $body = variable_get('sl7_contact_description');
+  $form['description']['sl7_contact_body'] = array(
+    '#type' => 'text_format',
+    '#title' => 'Основной текст на странице',
+    '#default_value' => isset($body) ? $body['value'] : '',
+    '#format' => isset($body) ? $body['format'] : 'filtered_html',
+  );
+
+  $form['location'] = array(
+    '#type' => 'fieldset',
+    '#title' => 'Местоположение',
+    '#collapsible' => TRUE,
+    '#collapsed' => FALSE,
+  );
+
+  $map = variable_get('sl7_contact_map');
+  $form['location']['sl7_contact_map'] = array(
+    '#type' => 'geofield_ymap',
+    '#title' => 'Карта',
+    '#description' => 'Укажите месторасположение на карте, выбрав необходимый инструмент. Двойной щелчок по объекту, удаляет его.',
+    '#map_multiple' => TRUE,
+    '#map_center' => isset($map) ? $map['center'] : array(58.345888, 57.435313),
+    '#map_zoom' => isset($map) ? $map['zoom'] : 5,
+    '#map_auto_centering' => TRUE,
+    '#map_object_types' => array('point', 'line', 'polygon'),
+  );
+  if (isset($map)) {
+    $form['location']['sl7_contact_map']['#map_objects'] = $map['objects'];
+  }
+
+  return system_settings_form($form);
+}
+
+/**
+ * Implementation of hook_ctools_plugin_api().
+ */
+function sl7_contact_ctools_plugin_api($owner, $api) {
+  if ($owner == 'path_breadcrumbs' && $api == 'path_breadcrumbs') {
+    return array('version' => 1);
+  }
+}
+
+/**
+ * Implements hook_path_breadcrumbs_settings_info().
+ */
+function sl7_contact_path_breadcrumbs_settings_info() {
+  $export = array();
+
+  $path_breadcrumb = new stdClass();
+  $path_breadcrumb->api_version = 1;
+  $path_breadcrumb->machine_name = 'sl7_contact';
+  $path_breadcrumb->name = 'Контакты';
+  $path_breadcrumb->path = 'contact';
+  $path_breadcrumb->data = array(
+    'titles' => array(
+      0 => '!page_title',
+    ),
+    'paths' => array(
+      0 => '<none>',
+    ),
+    'home' => 1,
+    'translatable' => 0,
+    'arguments' => array(),
+    'access' => array(),
+  );
+  $path_breadcrumb->weight = 0;
+  $export['sl7_contact'] = $path_breadcrumb;
+
+  return $export;
+}
+
+/**
+ * Implements hook_default_entityform_type().
+ */
+function sl7_contact_default_entityform_type() {
+  $items = array();
+  $items['sl7_contact'] = entity_import('entityform_type', '{
+  "type" : "sl7_contact",
+  "label" : "\u041a\u043e\u043d\u0442\u0430\u043a\u0442\u044b",
+  "data" : {
+    "draftable" : 0,
+    "draft_redirect_path" : "",
+    "draft_button_text" : "",
+    "draft_save_text" : { "value" : "", "format" : "full_html" },
+    "submit_button_text" : "\u041e\u0442\u043f\u0440\u0430\u0432\u0438\u0442\u044c",
+    "submit_confirm_msg" : "\u041f\u0438\u0441\u044c\u043c\u043e \u043e\u0442\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u043e. \u041e\u0436\u0438\u0434\u0430\u0439\u0442\u0435 \u043e\u0442\u0432\u0435\u0442\u0430.",
+    "your_submissions" : "",
+    "disallow_resubmit_msg" : "",
+    "delete_confirm_msg" : "",
+    "page_title_view" : "",
+    "preview_page" : 0,
+    "submission_page_title" : "\u0421\u043e\u043e\u0431\u0449\u0435\u043d\u0438\u0435 \u0443\u0441\u043f\u0435\u0448\u043d\u043e \u043e\u0442\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u043e.",
+    "submission_text" : {
+      "value" : "\u003Cp\u003E\u0412\u0430\u0448\u0435 \u0441\u043e\u043e\u0431\u0449\u0435\u043d\u0438\u0435 \u0443\u0441\u043f\u0435\u0448\u043d\u043e \u043e\u0442\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u043e. \u0416\u0434\u0438\u0442\u0435 \u043e\u0442\u0432\u0435\u0442\u0430.\u003C\/p\u003E\r\n",
+      "format" : "full_html"
+    },
+    "submission_show_submitted" : 0,
+    "submissions_view" : "default",
+    "user_submissions_view" : "default",
+    "form_status" : "ENTITYFORM_OPEN",
+    "roles" : { "1" : "1", "2" : "2", "3" : "3", "4" : 0 },
+    "resubmit_action" : "new",
+    "redirect_path" : "",
+    "instruction_pre" : { "value" : "", "format" : "filtered_html" }
+  },
+  "weight" : "0",
+  "rdf_mapping" : [],
+  "paths" : []
+}');
+  return $items;
+}
+
+/**
+ * Implements hook_default_rules_configuration().
+ */
+function sl7_contact_default_rules_configuration() {
+  $items = array();
+  $items['rules_sl7_contact_notification_admin'] = entity_import('rules_config', '{ "rules_sl7_contact_notification_admin" : {
+    "LABEL" : "\u041e\u043f\u043e\u0432\u0435\u0449\u0435\u043d\u0438\u0435 \u0430\u0434\u043c\u0438\u043d\u0438\u0441\u0442\u0440\u0430\u0446\u0438\u0438 \u043e\u0431 \u0441\u043e\u043e\u0431\u0449\u0435\u043d\u0438\u0438 \u0441 \u043a\u043e\u043d\u0442\u0430\u043a\u0442\u043d\u043e\u0439 \u0444\u043e\u0440\u043c\u044b",
+    "PLUGIN" : "reaction rule",
+    "OWNER" : "rules",
+    "REQUIRES" : [ "rules", "entityform" ],
+    "ON" : { "entityform_insert" : [] },
+    "IF" : [
+      { "entity_is_of_bundle" : {
+          "entity" : [ "entityform" ],
+          "type" : "entityform",
+          "bundle" : { "value" : { "sl7_contact" : "sl7_contact" } }
+        }
+      }
+    ],
+    "DO" : [
+      { "mail" : {
+          "to" : "[site:mail]",
+          "subject" : "\u0421\u043e\u043e\u0431\u0449\u0435\u043d\u0438\u0435 \u0441 \u043a\u043e\u043d\u0442\u0430\u043a\u0442\u043d\u043e\u0439 \u0444\u043e\u0440\u043c\u044b \u0441\u0430\u0439\u0442\u0430 [site:name]",
+          "message" : "\u041f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u044c \u043e\u0441\u0442\u0430\u0432\u0438\u043b \u0441\u043e\u043e\u0431\u0449\u0435\u043d\u0438\u0435 \u0447\u0435\u0440\u0435\u0437 \u043a\u043e\u043d\u0442\u0430\u043a\u0442\u043d\u0443\u044e \u0444\u043e\u0440\u043c\u0443:\r\n[entityform:sl7_contact_name]\r\n[entityform:sl7_contact_email]\r\n[entityform:sl7_contact_message]",
+          "language" : [ "" ]
+        }
+      }
+    ]
+  }
+}');
+
+  return $items;
+}

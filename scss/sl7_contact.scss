@@ -1,0 +1,51 @@
+@import "../bower_components/susy/sass/susy";
+
+$phone-only-breakpoint: (
+  max-width: 767px,
+);
+
+#sl7-contact {
+  .body {
+    @include span(full);
+    @include susy-clearfix;
+  }
+
+  section {
+    &.wrapper {
+      @include span(full);
+      @include susy-clearfix;
+    }
+
+    .map {
+      @include span(1 of 2 no-gutters);
+
+      @include susy-breakpoint($phone-only-breakpoint) {
+        @include span(full);
+      }
+    }
+
+    .form {
+      @include span(1 of 2 no-gutters);
+      padding: 15px;
+      box-sizing: border-box;
+
+      @include susy-breakpoint($phone-only-breakpoint) {
+        @include span(full);
+      }
+
+      textarea,
+      input[type=text] {
+        display: inline-block;
+        max-width: 100%;
+      }
+
+      input[type=submit] {
+        width: 100% !important;
+      }
+    }
+  }
+}
+
+#block-sl7-contact-sl7-contact {
+  @include susy-clearfix;
+}
