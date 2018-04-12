@@ -1,6 +1,11 @@
 <?php
 
 /**
+ * @author Semyon Dragunov <sam.dragunov@gmail.com>
+ * https://github.com/SemyonDragunov
+ */
+
+/**
  * Implements hook_install().
  */
 function sl7_contact_install() {

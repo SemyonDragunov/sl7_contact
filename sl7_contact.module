@@ -1,5 +1,10 @@
 <?php
 
+/**
+ * @author Semyon Dragunov <sam.dragunov@gmail.com>
+ * https://github.com/SemyonDragunov
+ */
+
 define('SL7_CONTACT_ADMIN_PATH', SL7_CONTROL_PANEL_ADMIN_PATH . '/contact');
 
 /**
